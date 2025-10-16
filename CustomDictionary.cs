@@ -7,21 +7,21 @@ namespace CustomDictionaryImplementation
         private const int DefaultCapacity = 16;
         private const float MaxLoadFactor = 0.75f;
 
-        private LinkedList<KeyValuePair<TKey, TValue>>[] _buckets;
+        private SinglyLinkedList<KeyValuePair<TKey, TValue>>[] _buckets;
         private int _count;
         private readonly IEqualityComparer<TKey> _comparer;
 
         public int Count => _count;
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        public CustomDictionary(int capacity = DefaultCapacity, IEqualityComparer<TKey> comparer = null)
+        public CustomDictionary(int capacity = DefaultCapacity, IEqualityComparer<TKey>? comparer = null)
         {
             if (capacity <= 0)
             {
                 capacity = DefaultCapacity;
             }
 
-            _buckets = new LinkedList<KeyValuePair<TKey, TValue>>[capacity];
+            _buckets = new SinglyLinkedList<KeyValuePair<TKey, TValue>>[capacity];
             _comparer = comparer ?? EqualityComparer<TKey>.Default;
         }
 
@@ -43,23 +43,24 @@ namespace CustomDictionaryImplementation
             EnsureTheresCapacityBeforeInsert();
             int idx = GetBucketIndex(key);
 
-            LinkedList<KeyValuePair<TKey, TValue>> bucket = _buckets[idx];
+            SinglyLinkedList<KeyValuePair<TKey, TValue>> bucket = _buckets[idx];
 
             if (bucket == null)
             {
-                bucket = new LinkedList<KeyValuePair<TKey, TValue>>();
+                bucket = new SinglyLinkedList<KeyValuePair<TKey, TValue>>();
                 _buckets[idx] = bucket;
             }
 
             for (var node = bucket.First; node != null; node = node.Next)
             {
-                if (_comparer.Equals(node.Value.Key, key))
+                var kv = node.Data;
+                if (_comparer.Equals(kv.Key, key))
                 {
                     return false; // Key already exists
                 }
             }
 
-            bucket.AddLast(new KeyValuePair<TKey, TValue>(key, value));
+            bucket.Add(new KeyValuePair<TKey, TValue>(key, value));
             _count++;
 
             return true;
@@ -80,17 +81,14 @@ namespace CustomDictionaryImplementation
                 return false;
             }
 
-            for (var node = bucket.First; node != null; node = node.Next)
+            // Remove first node where kv.Key == key
+            bool removed = bucket.Remove(kv => _comparer.Equals(kv.Key, key));
+            if (removed)
             {
-                if (_comparer.Equals(node.Value.Key, key))
-                {
-                    bucket.Remove(node);
-                    _count--;
-                    return true;
-                }
+                _count--;
             }
 
-            return false;
+            return removed;
         }
 
         public bool TryGetValue(TKey key, out TValue value)
@@ -109,9 +107,10 @@ namespace CustomDictionaryImplementation
             {
                 for (var node = bucket.First; node != null; node = node.Next)
                 {
-                    if (_comparer.Equals(node.Value.Key, key))
+                    var kv = node.Data;
+                    if (_comparer.Equals(kv.Key, key))
                     {
-                        value = node.Value.Value;
+                        value = kv.Value;
                         return true;
                     }
                 }
@@ -146,7 +145,7 @@ namespace CustomDictionaryImplementation
 
         private void Resize(int newSize)
         {
-            var newBuckets = new LinkedList<KeyValuePair<TKey, TValue>>[newSize];
+            var newBuckets = new SinglyLinkedList<KeyValuePair<TKey, TValue>>[newSize];
 
             foreach (var pair in this)
             {
@@ -155,10 +154,10 @@ namespace CustomDictionaryImplementation
 
                 if (newBuckets[idx] == null)
                 {
-                    newBuckets[idx] = new LinkedList<KeyValuePair<TKey, TValue>>();
+                    newBuckets[idx] = new SinglyLinkedList<KeyValuePair<TKey, TValue>>();
                 }
 
-                newBuckets[idx].AddLast(pair);
+                newBuckets[idx].Add(pair);
             }
             _buckets = newBuckets;
         }
